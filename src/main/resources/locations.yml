@@ -1,0 +1,62 @@
+# Locations pour le plugin Events
+
+# Waiting room
+waiting-room:
+  world: "Event"
+  x: -57
+  y: -59
+  z: 8
+  yaw: 0.0
+  pitch: 0.0
+
+# Winning room
+winning-room:
+  world: "Event"
+  x: 100.5
+  y: 64.0
+  z: 100.5
+  yaw: 0.0
+  pitch: 0.0
+
+# Arènes
+arenas:
+  tntrun:
+    map1:
+      world: "Event"
+      x: -11.5
+      y: 82.0
+      z: 102.5
+      yaw: 90.0
+      pitch: 0.0
+  tnttag:
+    map1:
+      world: "Event"
+      x: -27.5
+      y: -63.0
+      z: 509.5
+      yaw: 0.0
+      pitch: 0.0
+  spleef:
+    map1:
+      world: "Event"
+      x: -613.5
+      y: 99.0
+      z: -152.5
+      yaw: 0.0
+      pitch: 0.0
+  ffa:
+    map1:
+      world: "Event"
+      x: -594.5
+      y: 96.0
+      z: 597.5
+      yaw: -90.0
+      pitch: 0.0
+  blockparty:
+    map1:
+      world: "Event"
+      x: -538.5
+      y: 67.0
+      z: 1272.5
+      yaw: 0.0
+      pitch: 0.0

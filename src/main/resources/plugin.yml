@@ -1,0 +1,37 @@
+name: EventsPlugin
+version: 1.0.0
+main: fr.celestia.events.EventsPlugin
+api-version: 1.21
+author: Vinyle_
+description: Plugin de minijeux avec système de jetons
+
+commands:
+  events:
+    description: Ouvrir le menu des événements
+    usage: /events [join|leave|list|reload]
+    aliases: [game, jeux, event]
+  eventtokens:
+    description: Gérer les jetons des événements
+    usage: /eventtokens [give|remove|set|check] [joueur] [montant]
+    aliases: [tokens, jetons, eventtoken]
+  voteparty:
+    description: Lancer un événement aléatoire
+    usage: /voteparty confirm
+    permission: events.voteparty
+
+permissions:
+  events.*:
+    description: Accès à toutes les permissions du plugin Events
+    children:
+      events.use: true
+      events.tokens.manage: true
+      events.admin: true
+  events.use:
+    description: Utiliser les commandes de base des événements
+    default: true
+  events.tokens.manage:
+    description: Gérer les jetons des joueurs
+    default: op
+  events.admin:
+    description: Accès aux commandes d'administration
+    default: op

@@ -1,0 +1,29 @@
+# Configuration du plugin Events
+
+# Paramètres des jeux
+waiting-timer: 60
+min-players: 2
+max-players: 16
+ceremony-timer: 10
+
+# Commandes de récompense
+win-command: "eco give %player% 1000"
+
+# Jeux disponibles
+available-games:
+  - "TNT Run"
+
+
+# Messages
+messages:
+  not-enough-tokens: "§cVous n'avez pas assez de jetons pour participer!"
+  game-starting: "§aLe jeu commence dans §e%time% §asecondes!"
+  not-enough-players: "§cPas assez de joueurs pour démarrer le jeu!"
+  player-joined: "§6%player% §aa rejoint la partie! (§e%current%§a/§e%max%§a)"
+  player-left: "§6%player% §ca quitté la partie!"
+  game-won: "§6%player% §aa gagné la partie!"
+
+debug:
+  save-locations: true
+  player-data: true
+  game-creation: true

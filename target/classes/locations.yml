@@ -60,3 +60,11 @@ arenas:
       z: 1272.5
       yaw: 0.0
       pitch: 0.0
+  buildbattle:
+    map1:
+      world: "Event"
+      x: -298.5
+      y: 36.0
+      z: 468.5
+      yaw: 0.0
+      pitch: 0.0

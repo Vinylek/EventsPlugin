@@ -37,12 +37,16 @@ public class InventoryManager {
 
         ItemStack blockParty = createMenuItem(Material.YELLOW_WOOL, "§dBlockParty", 
         Arrays.asList("§7Clique pour choisir une map", "§eReste sur la bonne couleur !"));
+
+        ItemStack buildBattle = createMenuItem(Material.NOTE_BLOCK, "§eBuildBattle", 
+        Arrays.asList("§7Clique pour choisir une map", "§eConstruis selon le thème imposé !"));
     
         menu.setItem(9, tntRun);
         menu.setItem(11, tntTag);
         menu.setItem(13, spleef);
         menu.setItem(15, ffa);
         menu.setItem(17, blockParty);
+        menu.setItem(19, buildBattle);
         
         player.openInventory(menu);
     }

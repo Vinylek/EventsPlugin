@@ -6,6 +6,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.scheduler.BukkitTask;
@@ -110,6 +111,11 @@ public class TntRunGame implements GameType {
         // Empêcher la casse de blocs
         event.setCancelled(true);
     }
+
+    @Override
+    public void onBlockPlace(Game game, BlockPlaceEvent event) {
+        event.setCancelled(true);
+    }
     
 
     @Override
@@ -168,7 +174,7 @@ public class TntRunGame implements GameType {
     
     @Override
     public int getWaitingTime() {
-        return 60;
+        return 120;
     }
     
     // Méthodes spécifiques au TNT Run

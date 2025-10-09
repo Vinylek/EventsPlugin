@@ -8,6 +8,7 @@ import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -64,7 +65,9 @@ public class MenuListener implements Listener {
                 plugin.getCommandManager().openMapsMenu(player, "FFA");
             } else if (itemName.equals("§dBlockParty")) {
                 plugin.getCommandManager().openMapsMenu(player, "BlockParty");
-            } 
+            } else if (itemName.equals("§eBuildBattle")) {
+                plugin.getCommandManager().openMapsMenu(player, "BuildBattle");
+            }
 
         } else if (inventoryTitle.startsWith("§6Maps - ")) {
             event.setCancelled(true);
@@ -92,20 +95,49 @@ public class MenuListener implements Listener {
     }
     
     private void sendInvitationMessage(Player host, String gameType, String mapName, String gameId) {
-        TextComponent invitation = new TextComponent("§6[ÉVÉNEMENT] §e" + host.getName() + " §aa lancé un " + gameType + 
-                            " sur " + mapName + "! ");
+        // Message principal avec effet de néon
+        TextComponent invitation = new TextComponent("§d§l⚡ §5§lÉVÉNEMENT §d§l⚡\n§6✦ §e" + host.getName() + " §6a lancé un §l" + gameType.toUpperCase() + "§r§6 !\n§6✦ Carte: §b" + mapName + " §6✦");
         
-        TextComponent clickToJoin = new TextComponent("§2§l[REJOINDRE]");
-        clickToJoin.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/game join"));
+        // Bouton REJOINDRE très visible
+        TextComponent clickToJoin = new TextComponent("§a§l✨ [ REJOINDRE L'ÉVÉNEMENT ] ✨");
+        clickToJoin.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/game join " + gameId));
         clickToJoin.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, 
-            new ComponentBuilder("§aCliquez pour rejoindre!\n§7" + gameType + " sur " + mapName).create()));
+            new ComponentBuilder("§a§l🎯 CLIQUEZ POUR REJOINDRE !\n\n" +
+                            "§6✦ Hôte: §e" + host.getName() + "\n" +
+                            "§6✦ Jeu: §b" + gameType + "\n" +
+                            "§6✦ Carte: §a" + mapName + "\n\n" +
+                            "§7➤ Cliquez ou tapez §e/game join §7\n" +
+                            "§7➤ Places limitées ! Rejoignez vite !").create()));
 
+        // Effet de son et titre pour attirer l'attention
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-            onlinePlayer.sendMessage("§m-----------------------------------------------------");
-            onlinePlayer.spigot().sendMessage(invitation, clickToJoin);
-            onlinePlayer.sendMessage("§m-----------------------------------------------------");
-            onlinePlayer.sendMessage("§7Utilisez §e/game join §7pour participer!");
+            // Sons d'attention
+            onlinePlayer.playSound(onlinePlayer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
+            onlinePlayer.playSound(onlinePlayer.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.2f);
+            
+            // Titre flashy
+            onlinePlayer.sendTitle(
+                "§6§l🎊 ÉVÉNEMENT 🎊", 
+                "§e" + host.getName() + " §6a lancé un " + gameType, 
+                10, 60, 20
+            );
+
+            // Message dans le chat avec formatage élaboré
+            onlinePlayer.sendMessage("§5§m⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤");
+            onlinePlayer.sendMessage("");
+            onlinePlayer.spigot().sendMessage(invitation);
+            onlinePlayer.sendMessage("");
+            onlinePlayer.spigot().sendMessage(clickToJoin);
+            onlinePlayer.sendMessage("");
+            onlinePlayer.sendMessage("§7§o✨ Événement créé par §e" + host.getName() + "§7§o - Rejoignez rapidement !");
+            onlinePlayer.sendMessage("§5§m⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤");
+            
+            // Action bar pour rappel
+            onlinePlayer.sendActionBar("§6§l🎮 Événement en cours! §e/game join");
         }
+        
+        // Log dans la console pour tracking
+        Bukkit.getLogger().info("§d[EVENT] " + host.getName() + " a lance un " + gameType + " sur " + mapName + " (ID: " + gameId + ")");
     }
     
     public String getPendingGameId(UUID hostUuid) {

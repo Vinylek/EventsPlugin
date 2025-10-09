@@ -8,6 +8,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Snowball;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
@@ -65,25 +66,12 @@ public class SpleefGame implements GameType {
         // Démarrer le timer du jeu
         startGameTimer(game);
     
-        
-        // Démarrer le spawn des power-ups
-        if (powerUpsEnabled) {
-            startPowerUpSpawning(game);
-        }
+
     }
     
     @Override
     public void onEnd(Game game) {
         stopAllTasks();
-        
-        // Nettoyer tous les power-ups actifs et les ArmorStands
-        for (Player player : new HashSet<>(activePowerUps.keySet())) {
-            removePlayerPowerUp(player);
-        }
-        
-        for (org.bukkit.entity.ArmorStand armorStand : new HashSet<>(activePowerUpStands.keySet())) {
-            removePowerUpStand(armorStand);
-        }
         
         brokenBlocks.clear();
         blocksBroken.clear();
@@ -163,6 +151,12 @@ public class SpleefGame implements GameType {
         event.setDropItems(false);
         event.setCancelled(false); // Laisser Minecraft gérer la casse normale
     }
+
+    @Override
+    public void onBlockPlace(Game game, BlockPlaceEvent event) {
+        event.setCancelled(true);
+        event.getPlayer().sendActionBar("§cVous ne pouvez pas poser de blocs !");
+    }
     
     @Override
     public boolean checkWinConditions(Game game) {
@@ -224,7 +218,7 @@ public class SpleefGame implements GameType {
     
     @Override
     public int getWaitingTime() {
-        return 60;
+        return 120;
     }
     
     // Méthodes spécifiques au Spleef
@@ -300,10 +294,6 @@ public class SpleefGame implements GameType {
         player.playSound(blockLocation, Sound.BLOCK_SNOW_BREAK, 1.0f, 1.0f);
         block.getWorld().spawnParticle(Particle.CLOUD, blockLocation.add(0.5, 0.5, 0.5), 10, 0.3, 0.3, 0.3, 0.1);
         
-        // Chance de spawner un power-up
-        if (powerUpsEnabled && random.nextDouble(100) < POWER_UP_SPAWN_CHANCE) {
-            spawnPowerUp(game, blockLocation);
-        }
         
         player.give(new ItemStack(Material.SNOWBALL));
         
@@ -481,264 +471,7 @@ public class SpleefGame implements GameType {
                 handleTimedEvents(game);
             }, 0L, 20L);
     }
-
     
-    private void startPowerUpSpawning(Game game) {
-        game.getGameManager().getPlugin().getServer().getScheduler().runTaskTimer(
-            game.getGameManager().getPlugin(), () -> {
-                if (game.getState() != fr.celestia.events.game.GameState.RUNNING) {
-                    return;
-                }
-                
-                // Spawner un power-up à un endroit aléatoire
-                if (random.nextInt(100) < 20) { // 20% de chance toutes les 10 secondes
-                    spawnRandomPowerUp(game);
-                }
-            }, 200L, 200L); // Toutes les 10 secondes
-    }
-
-    
-    /**
-     * Power-ups aléatoires qui donnent des avantages temporaires
-     */
-
-    private void spawnRandomPowerUp(Game game) {
-        Location arenaLocation = game.getArenaLocation();
-        if (arenaLocation == null) return;
-        
-        // Trouver un emplacement sûr sur l'un des étages
-        int randomLayer = random.nextInt(ARENA_LAYERS);
-        int layerY = getArenaBaseY(game) - (randomLayer * LAYER_HEIGHT);
-        
-        // Position aléatoire sur le disque de l'étage
-        double angle = random.nextDouble() * 2 * Math.PI;
-        double distance = random.nextDouble() * (LAYER_RADIUS - 3); // Éviter les bords
-        
-        int x = (int) (arenaLocation.getX() + Math.cos(angle) * distance);
-        int z = (int) (arenaLocation.getZ() + Math.sin(angle) * distance);
-        
-        Location spawnLocation = new Location(arenaLocation.getWorld(), x, layerY + 1, z);
-        
-        // Vérifier que l'emplacement est libre
-        if (isLocationSafeForPowerUp(spawnLocation)) {
-            spawnPowerUp(game, spawnLocation);
-        }
-    }
-
-    private boolean isLocationSafeForPowerUp(Location location) {
-        // Vérifier qu'il n'y a pas déjà un power-up à proximité
-        for (org.bukkit.entity.ArmorStand existingStand : activePowerUpStands.keySet()) {
-            if (existingStand.isValid() && existingStand.getLocation().distance(location) < 3.0) {
-                return false;
-            }
-        }
-        
-        // Vérifier que l'emplacement n'est pas occupé par un bloc
-        return location.getBlock().getType() == Material.AIR &&
-            location.clone().add(0, 1, 0).getBlock().getType() == Material.AIR;
-    }
-    
-    private void spawnPowerUp(Game game, Location location) {
-        PowerUpType[] powerUps = PowerUpType.values();
-        PowerUpType randomPowerUp = powerUps[random.nextInt(powerUps.length)];
-        
-        // Créer l'entité du power-up
-        org.bukkit.entity.ArmorStand armorStand = createPowerUpArmorStand(game, location, randomPowerUp);
-        activePowerUpStands.put(armorStand, randomPowerUp);
-        
-        // Effets visuels de spawn
-        location.getWorld().spawnParticle(Particle.END_ROD, location.add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0.1);
-        location.getWorld().playSound(location, Sound.ENTITY_ENDER_EYE_LAUNCH, 1.0f, 1.5f);
-    
-        
-        // Supprimer le power-up après 30 secondes
-        Bukkit.getScheduler().runTaskLater(
-        game.getGameManager().getPlugin(), () -> {
-            if (armorStand.isValid()) {
-                removePowerUpStand(armorStand);
-            }
-        }, 600L);
-    }
-    
-    private org.bukkit.entity.ArmorStand createPowerUpArmorStand(Game game, Location location, PowerUpType powerUp) {
-        World world = location.getWorld();
-        
-        // Créer l'ArmorStand
-        org.bukkit.entity.ArmorStand armorStand = world.spawn(location.add(0.5, 0, 0.5), org.bukkit.entity.ArmorStand.class);
-        
-        // Configurer l'ArmorStand pour la collision
-        armorStand.setVisible(false);
-        armorStand.setGravity(false);
-        armorStand.setInvulnerable(true);
-        armorStand.setCanPickupItems(false);
-        armorStand.setCollidable(true); 
-        armorStand.setMarker(false); 
-        armorStand.setCustomName(powerUp.getName());
-        armorStand.setCustomNameVisible(true);
-        
-        
-        // Taille légèrement plus grande pour faciliter la collision
-        armorStand.setSmall(false);
-        
-        // Ajouter la tête custom
-        String texture = POWER_UP_TEXTURES.get(powerUp);
-        if (texture != null) {
-            ItemStack head = createCustomHead(texture, powerUp.getName());
-            armorStand.setHelmet(head);
-        }
-        
-        // Effet de glow
-        armorStand.setGlowing(true);
-        
-        return armorStand;
-    }
-
-    // TODO: A fixer
-    private ItemStack createCustomHead(String texture, String displayName) {
-        try {
-            // Créer une tête custom avec la texture
-            ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-            SkullMeta meta = (SkullMeta) head.getItemMeta();
-            
-            // Utiliser la reflection pour définir la texture (méthode plus moderne)
-            java.lang.reflect.Method method = meta.getClass().getMethod("setPlayerProfile", org.bukkit.profile.PlayerProfile.class);
-            org.bukkit.profile.PlayerProfile profile = Bukkit.createPlayerProfile(java.util.UUID.randomUUID());
-            
-            java.lang.reflect.Method getTexturesMethod = profile.getClass().getMethod("getTextures");
-            org.bukkit.profile.PlayerTextures textures = (org.bukkit.profile.PlayerTextures) getTexturesMethod.invoke(profile);
-            
-            java.net.URL textureUrl = new java.net.URL("http://textures.minecraft.net/texture/" + texture);
-            java.lang.reflect.Method setSkinMethod = textures.getClass().getMethod("setSkin", java.net.URL.class);
-            setSkinMethod.invoke(textures, textureUrl);
-            
-            java.lang.reflect.Method setTexturesMethod = profile.getClass().getMethod("setTextures", org.bukkit.profile.PlayerTextures.class);
-            setTexturesMethod.invoke(profile, textures);
-            
-            method.invoke(meta, profile);
-            meta.setDisplayName(displayName);
-            head.setItemMeta(meta);
-            
-            return head;
-        } catch (Exception e) {
-            return new ItemStack(Material.PLAYER_HEAD);
-        }
-    }
-
-    
-
-    private void removePowerUpStand(org.bukkit.entity.ArmorStand armorStand) {
-        // Effets de disparition
-        if (armorStand.isValid()) {
-            Location loc = armorStand.getLocation();
-            loc.getWorld().spawnParticle(Particle.CLOUD, loc, 10, 0.3, 0.3, 0.3, 0.1);
-            loc.getWorld().playSound(loc, Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
-            armorStand.remove();
-        }
-        activePowerUpStands.remove(armorStand);
-    }
-    
-    /**
-     * Gère la collecte d'un power-up
-     */
-
-    public void handlePowerUpCollision(Game game, Player player, org.bukkit.entity.ArmorStand armorStand) {
-        PowerUpType powerUp = activePowerUpStands.get(armorStand);
-        if (powerUp == null) return;
-        
-        // Vérifier que le joueur est actif (pas spectateur)
-        if (!game.getPlayers().contains(player.getUniqueId())) {
-            return;
-        }
-        
-        // Retirer l'ancien power-up si le joueur en a déjà un
-        removePlayerPowerUp(player);
-        
-        // Appliquer le nouvel effet
-        applyPowerUpEffect(game, player, powerUp);
-        
-        // Stocker le power-up actif
-        activePowerUps.put(player, powerUp);
-        
-        // Supprimer l'ArmorStand avec effets
-        removePowerUpStandWithEffects(armorStand, player.getLocation());
-        
-        // Effets visuels et sonores de collecte
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
-        player.spawnParticle(Particle.FIREWORK, player.getLocation().add(0, 1, 0), 25, 0.5, 0.5, 0.5, 0.1);
-        
-        // Message au joueur
-        player.sendMessage("§a⚡ Power-up collecté: " + powerUp.getName() + " §7(" + powerUp.getDuration() + "s)");
-                
-        // Planifier la fin de l'effet (sauf pour les power-ups à usage unique)
-        if (powerUp.getDuration() > 0) {
-            BukkitTask powerUpTask = Bukkit.getScheduler().runTaskLater(
-                game.getGameManager().getPlugin(), () -> {
-                    removePlayerPowerUp(player);
-                    player.sendMessage("§7L'effet " + powerUp.getName() + " §7s'est dissipé.");
-                }, powerUp.getDuration() * 20L);
-            
-            powerUpTasks.put(player, powerUpTask);
-        }
-    }
-
-    private void removePowerUpStandWithEffects(org.bukkit.entity.ArmorStand armorStand, Location playerLocation) {
-        // Effets de collecte
-        if (armorStand.isValid()) {
-            Location loc = armorStand.getLocation();
-            
-            // Particules directionnelles vers le joueur
-            org.bukkit.util.Vector direction = playerLocation.toVector().subtract(loc.toVector()).normalize();
-            for (int i = 0; i < 10; i++) {
-                loc.getWorld().spawnParticle(Particle.END_ROD, 
-                    loc, 1, direction.getX() * 0.1, direction.getY() * 0.1, direction.getZ() * 0.1, 0.1);
-            }
-            
-            // Son de collecte
-            loc.getWorld().playSound(loc, Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.5f);
-            
-            armorStand.remove();
-        }
-        activePowerUpStands.remove(armorStand);
-    }
-    
-    private void applyPowerUpEffect(Game game, Player player, PowerUpType powerUp) {
-        switch (powerUp) {
-            case SPEED_BOOST:
-                player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.SPEED, powerUp.getDuration() * 20, 1, false, true));
-                break;
-                
-            case JUMP_BOOST:
-                player.addPotionEffect(new org.bukkit.potion.PotionEffect(
-                    org.bukkit.potion.PotionEffectType.JUMP_BOOST, powerUp.getDuration() * 20, 1, false, true));
-                break;
-                
-            
-        }
-    }
-    
-    private void removePlayerPowerUp(Player player) {
-        PowerUpType oldPowerUp = activePowerUps.remove(player);
-        if (oldPowerUp != null) {
-            // Retirer les effets spécifiques
-            switch (oldPowerUp) {
-                case SPEED_BOOST:
-                    player.removePotionEffect(org.bukkit.potion.PotionEffectType.SPEED);
-                    break;
-                case JUMP_BOOST:
-                    player.removePotionEffect(org.bukkit.potion.PotionEffectType.JUMP_BOOST);
-                    break;
-            }
-        }
-        
-        // Arrêter la tâche du power-up
-        BukkitTask task = powerUpTasks.remove(player);
-        if (task != null) {
-            task.cancel();
-        }
-    }
-    
-
     
     
     /**

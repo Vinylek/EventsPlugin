@@ -1,6 +1,7 @@
 package fr.celestia.events.game;
 
 import fr.celestia.events.EventsPlugin;
+import fr.celestia.events.game.types.BuildBattleGame;
 import fr.celestia.events.game.types.GameType;
 import fr.celestia.events.managers.GameManager;
 import org.bukkit.Bukkit;
@@ -8,6 +9,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.scheduler.BukkitTask;
@@ -292,8 +294,13 @@ public class Game {
         // Téléporter vers la winning room
         teleportToWinningRoom();
         
+
         // Donner les récompenses
-        giveRewards(winners);
+        int time = gameManager.getConfigManager().getCeremonyTimer();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            giveRewards(winners);
+        }, ((time + 3) * 20L));
+    
         
         // Cérémonie de fin
         startCeremonyTimer();
@@ -309,7 +316,6 @@ public class Game {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null) {
                 player.teleport(winningRoomLocation);
-                player.sendMessage("§aTéléportation vers la salle des vainqueurs...");
             }
         }
     }
@@ -324,14 +330,13 @@ public class Game {
             
             // Message personnalisé au gagnant
             winner.sendMessage("§6§lFélicitations! §eVous avez gagné la partie!");
-            winner.sendMessage("§aRécompense attribuée!");
         }
         
         // Récompenses de participation pour tous les joueurs
         for (UUID playerId : players) {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && !winners.contains(player)) {
-                player.sendMessage("§eMerci d'avoir participé! §7Mieux chance la prochaine fois!");
+                player.sendMessage("§eMerci d'avoir participé!");
             }
         }
     }
@@ -448,11 +453,15 @@ public class Game {
 
     // Nouvelle méthode pour éliminer un joueur (devenir spectateur)
     public void eliminatePlayer(Player player, String reason, Boolean broadcasting) {
-        if (players.contains(player.getUniqueId())) {
+        if (players.contains(player.getUniqueId())) 
+        {
             players.remove(player.getUniqueId());
             spectators.add(player.getUniqueId());
             
             // Mettre en mode spectateur
+            player.setHealth(20.0);
+            player.setFoodLevel(20);
+            player.setSaturation(5.0f);
             player.setGameMode(org.bukkit.GameMode.SPECTATOR);
             player.setAllowFlight(true);
             player.setFlying(true);
@@ -512,6 +521,12 @@ public class Game {
             gameType.onBlockBreak(this, event);
         }
     }
+
+    public void handleBlockPlace(BlockPlaceEvent event) {
+        if (state == GameState.WAITING || state == GameState.RUNNING) {
+            gameType.onBlockPlace(this, event);
+        }
+    }
     
     public void broadcastMessage(String message) {
         for (UUID playerId : players) {
@@ -540,7 +555,7 @@ public class Game {
             }
         }
         
-        // Ajouter les spectateurs (optionnel, selon l'usage)
+        // Ajouter les spectateurs
         for (UUID spectatorId : spectators) {
             Player spectator = Bukkit.getPlayer(spectatorId);
             if (spectator != null && spectator.isOnline()) {

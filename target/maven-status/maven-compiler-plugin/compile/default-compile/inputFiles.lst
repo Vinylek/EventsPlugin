@@ -11,6 +11,7 @@
 /home/etienne/Downloads/Plugins/events/src/main/java/fr/celestia/events/game/GameState.java
 /home/etienne/Downloads/Plugins/events/src/main/java/fr/celestia/events/game/PlayerData.java
 /home/etienne/Downloads/Plugins/events/src/main/java/fr/celestia/events/game/types/BlockPartyGame.java
+/home/etienne/Downloads/Plugins/events/src/main/java/fr/celestia/events/game/types/BuildBattleGame.java
 /home/etienne/Downloads/Plugins/events/src/main/java/fr/celestia/events/game/types/FFAGame.java
 /home/etienne/Downloads/Plugins/events/src/main/java/fr/celestia/events/game/types/GameType.java
 /home/etienne/Downloads/Plugins/events/src/main/java/fr/celestia/events/game/types/SpleefGame.java

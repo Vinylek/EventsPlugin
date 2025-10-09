@@ -2,6 +2,7 @@ package fr.celestia.events.game.types;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 
@@ -44,6 +45,11 @@ public interface GameType {
      * Appelé quand un bloc est cassé
      */
     void onBlockBreak(Game game, BlockBreakEvent event);
+
+    /**
+     * Appelé quand un bloc est posé
+     */
+    void onBlockPlace(Game game, BlockPlaceEvent event);
     
     /**
      * Vérifie les conditions de victoire

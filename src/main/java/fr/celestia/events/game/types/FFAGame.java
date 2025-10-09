@@ -7,6 +7,7 @@ import org.bukkit.block.Chest;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -120,6 +121,12 @@ public class FFAGame implements GameType {
         event.setCancelled(true);
         event.getPlayer().sendActionBar("§cVous ne pouvez pas casser de blocs !");
     }
+
+    @Override
+    public void onBlockPlace(Game game, BlockPlaceEvent event) {
+        event.setCancelled(true);
+        event.getPlayer().sendActionBar("§cVous ne pouvez pas poser de blocs !");
+    }
     
     @Override
     public boolean checkWinConditions(Game game) {
@@ -180,7 +187,7 @@ public class FFAGame implements GameType {
     
     @Override
     public int getWaitingTime() {
-        return 60;
+        return 120;
     }
     
     // MÉTHODES SPÉCIFIQUES AU FFA

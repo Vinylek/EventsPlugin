@@ -14,6 +14,7 @@ fr/celestia/events/game/types/SpleefGame$PowerUpType.class
 fr/celestia/events/game/types/FFAGame$LootType.class
 fr/celestia/events/managers/GameManager.class
 fr/celestia/events/events/PlayerConnectionListener.class
+fr/celestia/events/game/types/BuildBattleGame.class
 fr/celestia/events/managers/BossBarManager$1.class
 fr/celestia/events/game/Game$1.class
 fr/celestia/events/game/types/GameType.class
@@ -24,6 +25,7 @@ fr/celestia/events/managers/ConfigManager.class
 fr/celestia/events/game/types/TntRunGame.class
 fr/celestia/events/managers/InventoryManager.class
 fr/celestia/events/commands/EventsCommand.class
+fr/celestia/events/game/types/BuildBattleGame$1.class
 fr/celestia/events/managers/BossBarManager.class
 fr/celestia/events/events/ChatListener$1.class
 fr/celestia/events/game/GameState.class

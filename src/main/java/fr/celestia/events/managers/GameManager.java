@@ -5,6 +5,7 @@ import fr.celestia.events.game.Game;
 import fr.celestia.events.game.GameState;
 import fr.celestia.events.game.PlayerData;
 import fr.celestia.events.game.types.BlockPartyGame;
+import fr.celestia.events.game.types.BuildBattleGame;
 import fr.celestia.events.game.types.FFAGame;
 import fr.celestia.events.game.types.GameType;
 import fr.celestia.events.game.types.SpleefGame;
@@ -95,6 +96,9 @@ public class GameManager {
             case "BLOCKPARTY":
             case "BLOCK PARTY":
                 return new BlockPartyGame();
+            case "BUILD BATTLE":
+            case "BUILDBATTLE":
+                return new BuildBattleGame();
             default:
                 return null;
         }

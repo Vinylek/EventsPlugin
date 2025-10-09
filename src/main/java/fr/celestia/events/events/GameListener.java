@@ -1,5 +1,6 @@
 package fr.celestia.events.events;
 
+import fr.celestia.events.game.types.BuildBattleGame;
 import fr.celestia.events.game.types.FFAGame;
 import fr.celestia.events.game.types.SpleefGame;
 import fr.celestia.events.game.types.TntTagGame;
@@ -15,8 +16,10 @@ import org.bukkit.entity.Snowball;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -44,11 +47,7 @@ public class GameListener implements Listener {
             Game game = gameOpt.get();
             game.handlePlayerMove(event);
 
-            // Vérifier si le joueur s'est déplacé significativement
-            if (from.distance(to) < 0.1) return;
             
-            // Vérifier les collisions avec les ArmorStands autour du joueur
-            checkPowerUpCollisions(player, to);
         }
     }
     
@@ -114,6 +113,34 @@ public class GameListener implements Listener {
         }
     }
 
+    @EventHandler
+    public void onBlockPlace(BlockPlaceEvent event) {
+        Player player = event.getPlayer();
+        Optional<Game> gameOpt = gameManager.getPlayerGame(player);
+        
+        if (gameOpt.isPresent()) {
+            Game game = gameOpt.get();
+            game.handleBlockPlace(event);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        Optional<Game> gameOpt = gameManager.getPlayerGame(player);
+        
+        if (gameOpt.isPresent() && gameOpt.get().getGameType() instanceof BuildBattleGame) {
+            Game game = gameOpt.get();
+            BuildBattleGame buildBattle = (BuildBattleGame) game.getGameType();
+            ItemStack item = event.getItem();
+            
+            if (item != null && buildBattle.isTimeToVote() && item.getType().toString().contains("WOOL")) {
+                buildBattle.handleVote(player, item);
+                event.setCancelled(true);
+            }
+        }
+    }
+
     // FFA
     @EventHandler
     public void onPlayerDeath(org.bukkit.event.entity.PlayerDeathEvent event) {
@@ -145,44 +172,12 @@ public class GameListener implements Listener {
         if (!(event.getEntity() instanceof org.bukkit.entity.ArmorStand)) {
             return;
         }
-        
-        org.bukkit.entity.ArmorStand armorStand = (org.bukkit.entity.ArmorStand) event.getEntity();
-        
-        // Vérifier si c'est un joueur qui cause la collision
-        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent) {
-            org.bukkit.event.entity.EntityDamageByEntityEvent damageEvent = (org.bukkit.event.entity.EntityDamageByEntityEvent) event;
-            
-            if (damageEvent.getDamager() instanceof Player) {
-                Player player = (Player) damageEvent.getDamager();
-                handlePowerUpCollision(player, armorStand);
-            }
-        }
+
     }
 
 
 
-    private void checkPowerUpCollisions(Player player, Location playerLocation) {
-        // Vérifier les ArmorStands dans un rayon de 1.5 bloc
-        for (org.bukkit.entity.Entity entity : playerLocation.getWorld().getNearbyEntities(playerLocation, 1.5, 1.5, 1.5)) {
-            if (entity instanceof org.bukkit.entity.ArmorStand) {
-                org.bukkit.entity.ArmorStand armorStand = (org.bukkit.entity.ArmorStand) entity;
-                handlePowerUpCollision(player, armorStand);
-            }
-        }
-    }
 
-    private void handlePowerUpCollision(Player player, org.bukkit.entity.ArmorStand armorStand) {
-        Optional<Game> gameOpt = gameManager.getPlayerGame(player);
-        
-        if (gameOpt.isPresent() && gameOpt.get().getGameType() instanceof SpleefGame) {
-            SpleefGame spleefGame = (SpleefGame) gameOpt.get().getGameType();
-            
-            // Vérifier si c'est un power-up de Spleef
-            if (armorStand.getCustomName() != null && armorStand.isCustomNameVisible() && armorStand.isGlowing()) {
-                spleefGame.handlePowerUpCollision(gameOpt.get(), player, armorStand);
-            }
-        }
-    }
 
     @EventHandler
     public void onProjectileLaunch(org.bukkit.event.entity.ProjectileLaunchEvent event) {

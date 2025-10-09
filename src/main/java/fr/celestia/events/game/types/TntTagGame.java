@@ -5,6 +5,7 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -97,6 +98,11 @@ public class TntTagGame implements GameType {
         // Empêcher la casse de blocs
         event.setCancelled(true);
     }
+
+    @Override
+    public void onBlockPlace(Game game, BlockPlaceEvent event) {
+        event.setCancelled(true);
+    }
     
     @Override
     public boolean checkWinConditions(Game game) {
@@ -155,7 +161,7 @@ public class TntTagGame implements GameType {
     
     @Override
     public int getWaitingTime() {
-        return 60;
+        return 120;
     }
     
     // Méthodes spécifiques au TNT Tag

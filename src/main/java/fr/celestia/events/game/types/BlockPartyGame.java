@@ -10,14 +10,12 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.Vector;
 
 import java.util.*;
-import java.util.regex.Matcher;
 
 public class BlockPartyGame implements GameType {
     
@@ -28,11 +26,11 @@ public class BlockPartyGame implements GameType {
     private final Random random = new Random();
     
     // Configuration du BlockParty
-    private final int BASE_ROUND_TIME = 7; // Temps de base pour le premier round
-    private final int ROUND_DECREASE = 1; // Réduction du temps par round
-    private final int MIN_ROUND_TIME = 3; // Temps minimum par round
-    private final int REGENERATION_TIME = 3; // Temps avant régénération après disparition
-    private final int ARENA_RADIUS = 15;
+    private final int BASE_ROUND_TIME = 7;
+    private final int MIN_ROUND_TIME = 3;
+    private final int REGENERATION_TIME = 3;
+    private final int ARENA_SIZE = 40; // Taille du carré
+    private final int CHUNK_SIZE = 4; // Taille des
     
     // Couleurs des plates-formes
     private final Material[] PLATFORM_COLORS = {
@@ -71,7 +69,7 @@ public class BlockPartyGame implements GameType {
         // Téléporter les joueurs
         teleportPlayersToPlatform(game);
         
-        // Générer la plate-forme initiale
+        // Générer la plateforme initiale
         generatePlatform(game);
         
         // Démarrer le premier round
@@ -87,7 +85,7 @@ public class BlockPartyGame implements GameType {
         platformBlocks.clear();
         safeBlocks.clear();
         
-        // Restaurer la plate-forme
+        // Restaurer la plateforme
         restorePlatform(game);
     }
     
@@ -114,12 +112,15 @@ public class BlockPartyGame implements GameType {
             eliminatePlayer(game, player, "est tombé dans le vide");
             return;
         }
-        
     }
-    
     
     @Override
     public void onBlockBreak(Game game, BlockBreakEvent event) {
+        event.setCancelled(true);
+    }
+
+    @Override
+    public void onBlockPlace(Game game, BlockPlaceEvent event) {
         event.setCancelled(true);
     }
     
@@ -176,7 +177,7 @@ public class BlockPartyGame implements GameType {
     
     @Override
     public int getWaitingTime() {
-        return 30;
+        return 120;
     }
     
     @Override
@@ -234,7 +235,7 @@ public class BlockPartyGame implements GameType {
         // Identifier les blocs safe
         identifySafeBlocks();
         
-        // Annoncer le nouveau round - AVEC COMPONENTS
+        // Annoncer le nouveau round
         Component roundMessage = Component.text()
             .append(Component.text("ROUND " + currentRound).color(TextColor.color(0xD500F9)).decorate(TextDecoration.BOLD))
             .build();
@@ -249,7 +250,6 @@ public class BlockPartyGame implements GameType {
             .append(Component.text(roundTimeLeft + " secondes").color(TextColor.color(0xFFFF00)))
             .build();
         
-        // Utiliser l'API Adventure pour broadcast
         for (Player player : game.getOnlinePlayers()) {
             player.sendMessage(roundMessage);
             player.sendMessage(safeColorMessage);
@@ -260,7 +260,6 @@ public class BlockPartyGame implements GameType {
         for (Player player : game.getOnlinePlayers()) {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.0f);
             
-            // Title avec components
             Component title = Component.text()
                 .append(Component.text("✦ ").color(TextColor.color(0xFFFFFF)))
                 .append(getHexColorComponent(currentColor))
@@ -331,24 +330,17 @@ public class BlockPartyGame implements GameType {
         }
     }
     
+    // Suppression des blocs
     private void removeUnsafeBlocks(Game game) {
-        int blocksRemoved = 0;
-        
         game.broadcastMessage("§cDISPARITION DES BLOCS !");
         
+        int blocksRemoved = 0;
+        
+        // Supprimer tous les blocs non-safe 
         for (Location blockLoc : platformBlocks) {
             if (!safeBlocks.contains(blockLoc)) {
                 Block block = blockLoc.getBlock();
                 if (block.getType() != Material.AIR && block.getType() != currentColor) {
-                    // Effets de destruction
-                    block.getWorld().spawnParticle(
-                        Particle.BLOCK,
-                        blockLoc.clone().add(0.5, 0.5, 0.5),
-                        15, 0.3, 0.3, 0.3,
-                        block.getBlockData()
-                    );
-                    block.getWorld().playSound(blockLoc, Sound.BLOCK_GLASS_BREAK, 0.7f, 1.2f);
-                    
                     // Supprimer le bloc
                     block.setType(Material.AIR);
                     blocksRemoved++;
@@ -356,20 +348,17 @@ public class BlockPartyGame implements GameType {
             }
         }
         
+        // Son
+        for (Player player : game.getOnlinePlayers()) {
+            player.playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 1.0f, 1.0f);
+        }
+        
         game.broadcastMessage("§c" + blocksRemoved + " blocs ont disparu !");
     }
     
-    
     private void regeneratePlatformAndNextRound(Game game) {
-        // Régénérer tous les blocs de la plate-forme
+        // Régénérer
         regeneratePlatform();
-        
-        
-        // Effets de régénération
-        for (Player player : game.getOnlinePlayers()) {
-            player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.0f);
-            player.spawnParticle(Particle.HAPPY_VILLAGER, player.getLocation(), 20, 1, 1, 1);
-        }
         
         // Démarrer le prochain round après un court délai
         Bukkit.getScheduler().runTaskLater(
@@ -379,6 +368,16 @@ public class BlockPartyGame implements GameType {
         );
     }
     
+    private void regeneratePlatform() {
+        // Régénérer tous les blocs en une fois
+        for (Location blockLoc : platformBlocks) {
+            Block block = blockLoc.getBlock();
+            Material color = generatePatternColor(blockLoc);
+            block.setType(color);
+        }
+    }
+    
+    
     
     private void eliminatePlayer(Game game, Player player, String reason) {
         game.eliminatePlayer(player, reason, true);
@@ -386,24 +385,14 @@ public class BlockPartyGame implements GameType {
         // Effets d'élimination
         player.sendTitle("§c💀 ÉLIMINÉ", "§7Round " + currentRound, 10, 60, 10);
         player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_DEATH, 1.0f, 1.0f);
-        player.getWorld().spawnParticle(Particle.LAVA, player.getLocation(), 20);
-        
+        player.getWorld().spawnParticle(Particle.LAVA, player.getLocation(), 15); // Réduit les particules
     }
-    
     
     private void restorePlatform(Game game) {  
         generatePlatform(game);
     }
 
-    private void regeneratePlatform() {
-        // Régénérer tous les blocs (pas seulement les air) pour un pattern cohérent
-        for (Location blockLoc : platformBlocks) {
-            Block block = blockLoc.getBlock();
-            Material color = generatePatternColor(blockLoc);
-            block.setType(color);
-        }
-    }
-
+    // NGénérer la platforme
     private void generatePlatform(Game game) {
         Location center = getPlatformCenter(game);
         World world = center.getWorld();
@@ -411,228 +400,76 @@ public class BlockPartyGame implements GameType {
         platformBlocks.clear();
         safeBlocks.clear();
         
-        // Générer un plateau circulaire avec patterns
-        for (int x = -ARENA_RADIUS; x <= ARENA_RADIUS; x++) {
-            for (int z = -ARENA_RADIUS; z <= ARENA_RADIUS; z++) {
-                // Vérifier si c'est dans le cercle
-                if (x * x + z * z <= ARENA_RADIUS * ARENA_RADIUS) {
-                    Location blockLoc = center.clone().add(x, 0, z);
+        int halfSize = ARENA_SIZE / 2;
+        
+        // Générer un plateau carré avec patterns
+        for (int x = -halfSize; x <= halfSize; x++) {
+            for (int z = -halfSize; z <= halfSize; z++) {
+                Location blockLoc = center.clone().add(x, 0, z);
+                
+                // Générer une couleur basée sur le pattern
+                Material color = generatePatternColor(blockLoc);
+                world.getBlockAt(blockLoc).setType(color);
+                
+                platformBlocks.add(blockLoc);
+            }
+        }
+        
+        // Ajouter des bordures pour délimiter la zone
+        createPlatformBorders(center, world, halfSize);
+    }
+    
+    private void createPlatformBorders(Location center, World world, int halfSize) {
+        Material borderMaterial = Material.SMOOTH_QUARTZ;
+        
+        // Bordures extérieures
+        for (int x = -halfSize - 1; x <= halfSize + 1; x++) {
+            for (int z = -halfSize - 1; z <= halfSize + 1; z++) {
+                // Ne placer que sur les bords
+                if (Math.abs(x) == halfSize + 1 || Math.abs(z) == halfSize + 1) {
+                    Location borderLoc = center.clone().add(x, -1, z);
+                    world.getBlockAt(borderLoc).setType(borderMaterial);
                     
-                    // Générer une couleur basée sur le pattern
-                    Material color = generatePatternColor(blockLoc);
-                    world.getBlockAt(blockLoc).setType(color);
-                    
-                    platformBlocks.add(blockLoc);
+                    // Ajouter une deuxième couche pour plus de visibilité
+                    Location borderLocTop = center.clone().add(x, 0, z);
+                    world.getBlockAt(borderLocTop).setType(borderMaterial);
                 }
             }
         }
     }
 
-    // Méthodes pour la génération de patterns
+    // Génération de patterns avec variation par round
     private Material generatePatternColor(Location location) {
         double x = location.getX();
         double z = location.getZ();
         
-        // Pattern en zones de 3x3 blocs pour créer des "taches" de couleur
-        int zoneX = (int) Math.floor(x / 3);
-        int zoneZ = (int) Math.floor(z / 3);
+        // Pattern en zones de taille variable selon le round
+        int zoneSize = 2 + (currentRound % 4); // Taille de zone entre 2 et 5 blocs
+        int zoneX = (int) Math.floor(x / zoneSize);
+        int zoneZ = (int) Math.floor(z / zoneSize);
         
-        // Hash déterministe basé sur la zone
-        int hash = (zoneX * 73856093) ^ (zoneZ * 19349663);
+        // Hash déterministe basé sur la zone et le round
+        int hash = (zoneX * 73856093) ^ (zoneZ * 19349663) ^ (currentRound * 83492791);
         hash = Math.abs(hash) % PLATFORM_COLORS.length;
         
         return PLATFORM_COLORS[hash];
     }
-
     
-    private Material generateOrganicPatternColor(Location location) {
-        double x = location.getX();
-        double z = location.getZ();
-        
-        // Bruit plus simple et cohérent
-        double noise1 = Math.sin(x * 0.1) * Math.cos(z * 0.1);
-        double noise2 = Math.sin(x * 0.05 + z * 0.05) * 0.5;
-        double combinedNoise = (noise1 + noise2 + 1.0) / 2.0; // Normaliser entre 0 et 1
-        
-        // Répartir les couleurs de façon égale
-        int colorIndex = (int) (combinedNoise * PLATFORM_COLORS.length);
-        return PLATFORM_COLORS[Math.abs(colorIndex) % PLATFORM_COLORS.length];
-    }
-
-
-    private Material generateSimplePattern(double x, double z) {
-        // Pattern en cercles concentriques
-        double distance = Math.sqrt(x * x + z * z);
-        int ring = (int) (distance / 3) % PLATFORM_COLORS.length; // Cercles tous les 3 blocs
-        
-        // Pattern en secteurs
-        double angle = Math.atan2(z, x);
-        int sector = (int) ((angle + Math.PI) / (Math.PI / 4)) % PLATFORM_COLORS.length; // 8 secteurs
-        
-        // Alterner entre cercles et secteurs
-        if (((int) x + (int) z) % 2 == 0) {
-            return PLATFORM_COLORS[ring];
-        } else {
-            return PLATFORM_COLORS[sector];
-        }
-    }
-
-    private double getCombinedNoise(double x, double z) {
-        double scale1 = 0.1;  // Pattern large
-        double scale2 = 0.3;  // Pattern moyen  
-        double scale3 = 0.8;  // Pattern fin
-        
-        double noise1 = simplexNoise(x * scale1, z * scale1) * 0.5;
-        double noise2 = simplexNoise(x * scale2, z * scale2) * 0.3;
-        double noise3 = simplexNoise(x * scale3, z * scale3) * 0.2;
-        
-        // Combinaison pondérée
-        return noise1 + noise2 + noise3;
-    }
-
-    private double simplexNoise(double x, double z) {
-        return improvedNoise(x, z);
-    }
-
-    private double improvedNoise(double x, double z) {
-        int xInt = (int) Math.floor(x);
-        int zInt = (int) Math.floor(z);
-        
-        double xFrac = x - xInt;
-        double zFrac = z - zInt;
-        
-        // Interpolation cosinus
-        double xFade = fade(xFrac);
-        double zFade = fade(zFrac);
-        
-        // Gradients
-        double n0 = grad(xInt, zInt, xFrac, zFrac);
-        double n1 = grad(xInt + 1, zInt, xFrac - 1, zFrac);
-        double ix0 = lerp(n0, n1, xFade);
-        
-        double n2 = grad(xInt, zInt + 1, xFrac, zFrac - 1);
-        double n3 = grad(xInt + 1, zInt + 1, xFrac - 1, zFrac - 1);
-        double ix1 = lerp(n2, n3, xFade);
-        
-        return lerp(ix0, ix1, zFade);
-    }
-
-    private double fade(double t) {
-        // Courbe de fade 6t^5 - 15t^4 + 10t^3
-        return t * t * t * (t * (t * 6 - 15) + 10);
-    }
-
-    private double lerp(double a, double b, double t) {
-        return a + t * (b - a);
-    }
-
-    private double grad(int x, int z, double xFrac, double zFrac) {
-        // Hash simple pour les gradients
-        int hash = (x * 1619 + z * 31337) & 0x7fffffff;
-        hash = (hash << 13) ^ hash;
-        
-        double grad = 1.0 + (hash & 7); // Gradient entre 1 et 8
-        return (hash & 1) == 0 ? xFrac * grad : zFrac * grad;
-    }
-
-    private Material getColorFromNoiseValue(double noiseValue) {
-        // Normaliser la valeur de bruit entre 0 et 1
-        double normalized = (noiseValue + 1.0) / 2.0; // De -1,1 à 0,1
-        normalized = Math.max(0, Math.min(1, normalized)); // Clamp
-
-        double ratio = 1 / 16;
-        
-        // Répartir les couleurs selon des seuils
-        if (normalized < ratio) return Material.BROWN_WOOL; 
-        else if (normalized < ratio * 2)return Material.PINK_WOOL; 
-        else if (normalized < ratio * 3) return Material.BLACK_WOOL;     
-        else if (normalized < ratio * 4) return Material.GRAY_WOOL;     
-        else if (normalized < ratio * 5) return Material.LIGHT_GRAY_WOOL;
-        else if (normalized < ratio * 6) return Material.WHITE_WOOL;    
-        else if (normalized < ratio * 7) return Material.RED_WOOL;      
-        else if (normalized < ratio * 8) return Material.ORANGE_WOOL;   
-        else if (normalized < ratio * 9) return Material.YELLOW_WOOL;   
-        else if (normalized < ratio * 10) return Material.LIME_WOOL;     
-        else if (normalized < ratio * 11) return Material.GREEN_WOOL;    
-        else if (normalized < ratio * 12) return Material.CYAN_WOOL;    
-        else if (normalized < ratio * 13) return Material.LIGHT_BLUE_WOOL; 
-        else if (normalized < ratio * 14) return Material.BLUE_WOOL;   
-        else if (normalized < ratio * 15) return Material.PURPLE_WOOL;   
-        else return Material.MAGENTA_WOOL;                        
-    }
-
-
-
-    private Material generateThematicPatternColor(double x, double z) {
-        double distance = Math.sqrt(x * x + z * z);
-        
-        // Choisir un pattern aléatoire
-        long seed = (long) (x * 1000 + z * 1000);
-        Random localRandom = new Random(seed);
-        int patternType = localRandom.nextInt(4);
-        
-        switch (patternType) {
-            case 0: return generateRadialPattern(x, z, distance);
-            case 1: return generateSpiralPattern(x, z);
-            case 2: return generateStripesPattern(x, z);
-            case 3: return generateCheckerboardPattern(x, z);
-            default: return PLATFORM_COLORS[localRandom.nextInt(PLATFORM_COLORS.length)];
-        }
-    }
-
-    private Material generateRadialPattern(double x, double z, double distance) {
-        // Pattern radial concentrique
-        double angle = Math.atan2(z, x);
-        double radialValue = (Math.sin(distance * 0.3) + 1) / 2; // Ondulations
-        
-        int colorIndex = (int) ((radialValue + angle / (2 * Math.PI)) * PLATFORM_COLORS.length);
-        return PLATFORM_COLORS[Math.abs(colorIndex) % PLATFORM_COLORS.length];
-    }
-
-    private Material generateSpiralPattern(double x, double z) {
-        // Pattern spiralé
-        double angle = Math.atan2(z, x);
-        double distance = Math.sqrt(x * x + z * z);
-        double spiralValue = (angle + distance * 0.5) / (2 * Math.PI);
-        
-        spiralValue = spiralValue - Math.floor(spiralValue); // Normaliser 0-1
-        int colorIndex = (int) (spiralValue * PLATFORM_COLORS.length);
-        return PLATFORM_COLORS[Math.abs(colorIndex) % PLATFORM_COLORS.length];
-    }
-
-    private Material generateStripesPattern(double x, double z) {
-        // Rayures horizontales/verticales
-        double stripeValue = (Math.sin(x * 0.2) + Math.cos(z * 0.2)) / 2 + 0.5;
-        int colorIndex = (int) (stripeValue * PLATFORM_COLORS.length);
-        return PLATFORM_COLORS[Math.abs(colorIndex) % PLATFORM_COLORS.length];
-    }
-
-    private Material generateCheckerboardPattern(double x, double z) {
-        // Damier
-        int xCell = (int) Math.floor(x);
-        int zCell = (int) Math.floor(z);
-        
-        if ((xCell + zCell) % 2 == 0) {
-            return PLATFORM_COLORS[random.nextInt(PLATFORM_COLORS.length / 2)]; // Première moitié
-        } else {
-            return PLATFORM_COLORS[PLATFORM_COLORS.length / 2 + random.nextInt(PLATFORM_COLORS.length / 2)]; // Seconde moitié
-        }
-    }
-    
+    // Téléportation aléatoire sur la platforme
     private void teleportPlayersToPlatform(Game game) {
         Location center = game.getArenaLocation().clone();
+        int halfSize = ARENA_SIZE / 2 - 2; // -2 pour éviter les bords
         
         for (Player player : game.getActivePlayers()) {
-            // Position aléatoire sur la plateforme
-            double angle = random.nextDouble() * 2 * Math.PI;
-            double distance = random.nextDouble() * (ARENA_RADIUS - 3);
+            // Position aléatoire sur la plateforme carrée
+            int x = random.nextInt(halfSize * 2) - halfSize;
+            int z = random.nextInt(halfSize * 2) - halfSize;
             
-            double x = center.getX() + Math.cos(angle) * distance;
-            double z = center.getZ() + Math.sin(angle) * distance;
             double y = center.getY() + 1;
             
-            Location spawnLoc = new Location(center.getWorld(), x, y, z, 
-                (float) (angle * 180 / Math.PI), 0);
+            Location spawnLoc = new Location(center.getWorld(), 
+                center.getX() + x, y, center.getZ() + z,
+                random.nextFloat() * 360 - 180, 0);
             
             player.teleport(spawnLoc);
         }
@@ -641,7 +478,6 @@ public class BlockPartyGame implements GameType {
     private Location getPlatformCenter(Game game) {
         Location arenaLoc = game.getArenaLocation();
         if (arenaLoc == null) {
-            // Fallback si aucune arène n'est définie
             World world = Bukkit.getWorlds().get(0);
             return new Location(world, 0, 100, 0);
         }
@@ -663,94 +499,69 @@ public class BlockPartyGame implements GameType {
         }
     }
     
-
-    
-    // private String getHexColor(Material material) {
-    //     switch (material) {
-    //         case WHITE_WOOL: return "§F§F§F§F§F§F";
-    //         case ORANGE_WOOL: return "§F§F§8§C§0§0";
-    //         case MAGENTA_WOOL: return "§F§F§0§0§F§F";
-    //         case LIGHT_BLUE_WOOL: return "§0§0§B§F§F§F";
-    //         case YELLOW_WOOL: return "§F§F§F§F§0§0";
-    //         case LIME_WOOL: return "§3§2§C§D§3§2";
-    //         case PINK_WOOL: return "§F§F§C§0§C§B";
-    //         case GRAY_WOOL: return "§8§0§8§0§8§0";
-    //         case LIGHT_GRAY_WOOL: return "§D§3§D§3§D§3";
-    //         case CYAN_WOOL: return "§0§0§F§F§F§F";
-    //         case PURPLE_WOOL: return "§8§0§0§0§8§0";
-    //         case BLUE_WOOL: return "§0§0§0§0§F§F";
-    //         case BROWN_WOOL: return "§8§B§4§5§1§3";
-    //         case GREEN_WOOL: return "§0§0§8§0§0§0";
-    //         case RED_WOOL: return "§F§F§0§0§0§0";
-    //         case BLACK_WOOL: return "§0";
-    //         default: return "§f";
-    //     }
-    // }
-
-
     private Component getHexColorComponent(Material material) {
         TextColor color;
         String colorName;
         
         switch (material) {
             case WHITE_WOOL: 
-                color = TextColor.color(0xFFFFFF);
+                color = TextColor.color(0xE9ECEC);
                 colorName = "BLANC";
                 break;
             case ORANGE_WOOL: 
-                color = TextColor.color(0xFF8C00); // Orange plus vif
+                color = TextColor.color(0xF07613);
                 colorName = "ORANGE";
                 break;
             case MAGENTA_WOOL: 
-                color = TextColor.color(0xFF00FF); // Magenta pur
+                color = TextColor.color(0xBD44B3);
                 colorName = "MAGENTA";
                 break;
             case LIGHT_BLUE_WOOL: 
-                color = TextColor.color(0x87CEEB);
+                color = TextColor.color(0x3AAFD9);
                 colorName = "BLEU CLAIR";
                 break;
             case YELLOW_WOOL: 
-                color = TextColor.color(0xFFFF00);
+                color = TextColor.color(0xF8C527);
                 colorName = "JAUNE";
                 break;
             case LIME_WOOL: 
-                color = TextColor.color(0x32CD32); // Lime plus vert
+                color = TextColor.color(0x70B919);
                 colorName = "VERT CLAIR";
                 break;
             case PINK_WOOL: 
-                color = TextColor.color(0xFF69B4); // Pink hot
+                color = TextColor.color(0xED8DAC);
                 colorName = "ROSE";
                 break;
             case GRAY_WOOL: 
-                color = TextColor.color(0x696969); // Gris foncé
-                colorName = "GRIS";
+                color = TextColor.color(0x3E4447);
+                colorName = "GRIS FONCÉ";
                 break;
             case LIGHT_GRAY_WOOL: 
-                color = TextColor.color(0xD3D3D3);
+                color = TextColor.color(0x8E8E86);
                 colorName = "GRIS CLAIR";
                 break;
             case CYAN_WOOL: 
-                color = TextColor.color(0x00CED1); // Cyan plus intense
+                color = TextColor.color(0x158991);
                 colorName = "CYAN";
                 break;
             case PURPLE_WOOL: 
-                color = TextColor.color(0x9370DB); // Violet medium
+                color = TextColor.color(0x792AAC);
                 colorName = "VIOLET";
                 break;
             case BLUE_WOOL: 
-                color = TextColor.color(0x4169E1); // Blue royal
+                color = TextColor.color(0x35399D);
                 colorName = "BLEU";
                 break;
             case BROWN_WOOL: 
-                color = TextColor.color(0x8B4513); // Brown sienna
+                color = TextColor.color(0x724728);
                 colorName = "MARRON";
                 break;
             case GREEN_WOOL: 
-                color = TextColor.color(0x228B22); // Forest green
+                color = TextColor.color(0x546D1B);
                 colorName = "VERT";
                 break;
             case RED_WOOL: 
-                color = TextColor.color(0xFF4500); // Red orange
+                color = TextColor.color(0xA02722);
                 colorName = "ROUGE";
                 break;
             case BLACK_WOOL: 
